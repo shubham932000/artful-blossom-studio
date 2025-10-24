@@ -46,7 +46,6 @@ const Hero = () => {
       {/* Shader Animation Background */}
       <div className="absolute inset-0">
         <ShaderAnimation />
-        <div className="absolute inset-0 bg-gradient-to-br from-background/60 via-background/40 to-background/60" />
       </div>
 
       {/* Animated Background Elements */}
