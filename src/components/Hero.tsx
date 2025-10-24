@@ -67,10 +67,10 @@ const Hero = () => {
               Luxury Nails
             </span>
             <br />
-            <span className="text-foreground">Artistry Perfected</span>
+            <span className="text-white">Artistry Perfected</span>
           </h1>
 
-          <p ref={subtitleRef} className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p ref={subtitleRef} className="text-xl md:text-2xl text-white mb-8 max-w-2xl mx-auto">
             Experience the ultimate in nail care and artistry. Where elegance meets creativity.
           </p>
 
