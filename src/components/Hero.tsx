@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import gsap from 'gsap';
 import heroBg from '@/assets/hero-bg.jpg';
+import { ShaderAnimation } from '@/components/ui/shader-animation';
 
 const Hero = () => {
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -42,14 +43,10 @@ const Hero = () => {
 
   return (
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Image with Overlay */}
+      {/* Shader Animation Background */}
       <div className="absolute inset-0">
-        <img 
-          src={heroBg} 
-          alt="Luxury nail salon interior" 
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-secondary/30 to-background/60 backdrop-blur-sm" />
+        <ShaderAnimation />
+        <div className="absolute inset-0 bg-gradient-to-br from-background/60 via-background/40 to-background/60" />
       </div>
 
       {/* Animated Background Elements */}
