@@ -34,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
         port: 465,
         tls: true,
         auth: {
-          username: "ssv93000@gmail.com",
+          username: "ssv932000@gmail.com",
           password: GMAIL_APP_PASSWORD!,
         },
       },
