@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 const timeSlots = [
   '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'
@@ -29,8 +30,33 @@ const Booking = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch booked slots when date changes
+  useEffect(() => {
+    if (!date) return;
+
+    const fetchBookedSlots = async () => {
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('booking_time')
+        .eq('booking_date', formattedDate);
+
+      if (error) {
+        console.error('Error fetching bookings:', error);
+        return;
+      }
+
+      const slots = new Set(data.map(booking => booking.booking_time));
+      setBookedSlots(slots);
+    };
+
+    fetchBookedSlots();
+  }, [date]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!date || !selectedTime || !selectedService || !name || !email || !phone) {
@@ -38,15 +64,62 @@ const Booking = () => {
       return;
     }
 
-    toast.success('Booking confirmed! We\'ll send you a confirmation email shortly.');
-    
-    // Reset form
-    setDate(undefined);
-    setSelectedTime('');
-    setSelectedService('');
-    setName('');
-    setEmail('');
-    setPhone('');
+    setIsLoading(true);
+
+    try {
+      const formattedDate = format(date, 'yyyy-MM-dd');
+
+      // Save booking to database
+      const { error: insertError } = await supabase
+        .from('bookings')
+        .insert({
+          name,
+          email,
+          phone,
+          service: selectedService,
+          booking_date: formattedDate,
+          booking_time: selectedTime,
+        });
+
+      if (insertError) {
+        toast.error('Failed to save booking. Please try again.');
+        console.error('Insert error:', insertError);
+        setIsLoading(false);
+        return;
+      }
+
+      // Send confirmation email
+      const { error: emailError } = await supabase.functions.invoke('send-booking-confirmation', {
+        body: {
+          name,
+          email,
+          phone,
+          service: selectedService,
+          bookingDate: formattedDate,
+          bookingTime: selectedTime,
+        },
+      });
+
+      if (emailError) {
+        console.error('Email error:', emailError);
+        toast.success('Booking confirmed! (Email notification failed, but your booking is saved)');
+      } else {
+        toast.success('Booking confirmed! Check your email for details! 🎉');
+      }
+
+      // Reset form
+      setDate(undefined);
+      setSelectedTime('');
+      setSelectedService('');
+      setName('');
+      setEmail('');
+      setPhone('');
+    } catch (error) {
+      console.error('Booking error:', error);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -153,20 +226,26 @@ const Booking = () => {
                     Available Time Slots
                   </Label>
                   <div className="grid grid-cols-3 gap-3">
-                    {timeSlots.map((time) => (
-                      <Button
-                        key={time}
-                        type="button"
-                        variant={selectedTime === time ? "default" : "outline"}
-                        className={cn(
-                          "transition-all hover:scale-105",
-                          selectedTime === time && "bg-primary"
-                        )}
-                        onClick={() => setSelectedTime(time)}
-                      >
-                        {time}
-                      </Button>
-                    ))}
+                    {timeSlots.map((time) => {
+                      const isBooked = bookedSlots.has(time);
+                      return (
+                        <Button
+                          key={time}
+                          type="button"
+                          variant={selectedTime === time ? "default" : "outline"}
+                          className={cn(
+                            "transition-all hover:scale-105",
+                            selectedTime === time && "bg-primary",
+                            isBooked && "opacity-50 cursor-not-allowed"
+                          )}
+                          onClick={() => !isBooked && setSelectedTime(time)}
+                          disabled={isBooked}
+                        >
+                          {time}
+                          {isBooked && " (Booked)"}
+                        </Button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -176,8 +255,9 @@ const Booking = () => {
               type="submit"
               size="lg"
               className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all hover:scale-105"
+              disabled={isLoading}
             >
-              Confirm Booking
+              {isLoading ? 'Processing...' : 'Confirm Booking'}
             </Button>
           </form>
         </Card>
