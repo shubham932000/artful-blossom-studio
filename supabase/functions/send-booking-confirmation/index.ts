@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,20 +26,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending booking confirmation to:", email);
 
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
+    const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
+    
+    const client = new SMTPClient({
+      connection: {
+        hostname: "smtp.gmail.com",
+        port: 465,
+        tls: true,
+        auth: {
+          username: "ssv93000@gmail.com",
+          password: GMAIL_APP_PASSWORD!,
+        },
       },
-      body: JSON.stringify({
-        from: "Nail Salon <ssv93000@gmail.com>",
-        to: [email],
-        subject: "🎉 Your Nail Appointment is Confirmed! ✨",
-        html: `
-        <!DOCTYPE html>
+    });
+
+    const htmlContent = `<!DOCTYPE html>
         <html>
           <head>
             <meta charset="utf-8">
@@ -214,20 +216,21 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
             </div>
           </body>
-        </html>
-      `,
-      }),
+        </html>`;
+
+    await client.send({
+      from: "Artistry Perfected Nail Salon <ssv93000@gmail.com>",
+      to: email,
+      subject: "🎉 Your Nail Appointment is Confirmed! ✨",
+      content: "auto",
+      html: htmlContent,
     });
 
-    if (!emailResponse.ok) {
-      const errorData = await emailResponse.json();
-      throw new Error(`Resend API error: ${JSON.stringify(errorData)}`);
-    }
+    await client.close();
 
-    const responseData = await emailResponse.json();
-    console.log("Email sent successfully:", responseData);
+    console.log("Email sent successfully to:", email);
 
-    return new Response(JSON.stringify(responseData), {
+    return new Response(JSON.stringify({ success: true, message: "Email sent successfully" }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
